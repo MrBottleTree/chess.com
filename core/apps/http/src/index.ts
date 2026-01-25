@@ -7,6 +7,10 @@ app.get('/', (req, res) => {
     res.send('Hello from chess.com repo!! lol');
 });
 
+app.get("/hello",(req,res)=>{
+    res.send({message:"Hello"});
+});
+
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
 });
