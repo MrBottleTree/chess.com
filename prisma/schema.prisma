@@ -1,0 +1,212 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+/* =======================
+   ENUMS
+   ======================= */
+
+enum GameStatus {
+  ONGOING
+  FINISHED
+  ABORTED
+}
+
+enum GameVariant {
+  STANDARD
+  CHESS960
+  KING_OF_THE_HILL
+}
+
+enum PlayerColor {
+  WHITE
+  BLACK
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+/* =======================
+   USER 
+   ======================= */
+
+model User {
+  user_id          Int      @id @default(autoincrement())
+  username         String   @unique
+  email            String   @unique
+  password_hash    String
+  display_name     String?
+  country          String?
+  joined_at        DateTime @default(now())
+
+  // Ratings for different time controls
+  rating_blitz     Int @default(1200)
+  rating_rapid     Int @default(1200)
+  rating_bullet    Int @default(1200)
+  rating_classical Int @default(1200)
+
+  is_admin         Boolean @default(false)
+
+  /* Relations */
+  games_as_white    Game[] @relation("WhitePlayer")
+  games_as_black    Game[] @relation("BlackPlayer")
+  moves             Move[]
+
+  sent_messages     Message[] @relation("SentMessages")
+  received_messages Message[] @relation("ReceivedMessages")
+
+  friendships_sent     Friendship[] @relation("FriendRequester")
+  friendships_received Friendship[] @relation("FriendAddressee")
+
+  histories History[]
+
+  /* Indexes for fast leaderboards */
+  @@index([rating_blitz])
+  @@index([rating_rapid])
+  @@index([rating_bullet])
+  @@index([rating_classical])
+}
+
+/* =======================
+   GAME
+   ======================= */
+
+model Game {
+  game_id              Int      @id @default(autoincrement())
+
+  white_user_id        Int
+  black_user_id        Int
+
+  time_control         String
+  variant              GameVariant
+  status               GameStatus
+  result               String?
+
+  white_rating_change  Int?
+  black_rating_change  Int?
+
+  started_at           DateTime
+  ended_at             DateTime?
+
+  pgn                  String?
+  rated                Boolean @default(true)
+  move_sequence        String?
+
+  /* Relations */
+  white_player User @relation("WhitePlayer", fields: [white_user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  black_player User @relation("BlackPlayer", fields: [black_user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+
+  moves     Move[]
+  histories History[]
+}
+
+/* =======================
+   MOVE
+   ======================= */
+model Move {
+  move_id          Int      @id @default(autoincrement())
+  game_id          Int
+  user_id          Int      
+
+  move_number      Int
+  player_color     PlayerColor
+
+  san              String
+  lan              String?
+  from_square      String
+  to_square        String
+  promotion_piece String?
+
+  is_check         Boolean @default(false)
+  is_checkmate     Boolean @default(false)
+  is_capture       Boolean @default(false)
+  is_castle        Boolean @default(false)
+
+  fen_after        String
+  created_at       DateTime @default(now())
+
+  // Relations
+  game Game @relation(fields: [game_id], references: [game_id], onDelete: Cascade, onUpdate: Cascade)
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([game_id, move_number])
+  @@index([user_id])
+}
+
+
+/* =======================
+   FRIENDSHIP
+   ======================= */
+
+model Friendship {
+  friendship_id     Int @id @default(autoincrement())
+
+  requester_user_id Int
+  addressee_user_id Int
+
+  status            FriendshipStatus
+  created_at        DateTime @default(now())
+  responded_at      DateTime?
+
+  requester User @relation("FriendRequester", fields: [requester_user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  addressee User @relation("FriendAddressee", fields: [addressee_user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([requester_user_id, addressee_user_id])
+}
+
+/* =======================
+   MESSAGE
+   ======================= */
+
+model Message {
+  message_id        Int @id @default(autoincrement())
+
+  sender_user_id    Int
+  recipient_user_id Int
+
+  body              String
+  sent_at           DateTime @default(now())
+  is_read           Boolean @default(false)
+
+  sender    User @relation("SentMessages", fields: [sender_user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  recipient User @relation("ReceivedMessages", fields: [recipient_user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([recipient_user_id, is_read])
+}
+
+/* =======================
+   HISTORY
+   ======================= */
+
+model History {
+  history_id    Int @id @default(autoincrement())
+
+  user_id       Int
+  game_id       Int
+
+  move_sequence String
+  created_at    DateTime @default(now())
+  won           Boolean
+
+  user User @relation(fields: [user_id], references: [user_id], onDelete: Cascade, onUpdate: Cascade)
+  game Game @relation(fields: [game_id], references: [game_id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([user_id, game_id])
+}
