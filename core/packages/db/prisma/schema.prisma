@@ -1,0 +1,138 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum GameStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABORTED
+}
+
+enum GameWinner {
+  WHITE
+  BLACK
+  DRAW
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  displayName  String?
+  country      String?
+  joinedAt     DateTime @default(now())
+  isAdmin      Boolean  @default(false)
+
+  auth         UserAuth?
+
+  gamesAsWhite Game[] @relation("GamesAsWhite")
+  gamesAsBlack Game[] @relation("GamesAsBlack")
+
+  sentMessages      Message[] @relation("SentMessages")
+  receivedMessages  Message[] @relation("ReceivedMessages")
+  
+  friendshipsInitiated Friendship[] @relation("FriendshipRequester")
+  friendshipsReceived  Friendship[] @relation("FriendshipAddressee")
+
+  leaderboardEntries LeaderboardEntry[]
+  
+  @@index([username])
+}
+
+model UserAuth {
+  id           Int    @id @default(autoincrement())
+  email        String @unique
+  passwordHash String
+  
+  userId       Int    @unique
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Game {
+  id                  Int         @id @default(autoincrement())
+  
+  whitePlayerId       Int
+  whitePlayer         User        @relation("GamesAsWhite", fields: [whitePlayerId], references: [id])
+  blackPlayerId       Int
+  blackPlayer         User        @relation("GamesAsBlack", fields: [blackPlayerId], references: [id])
+
+  status              GameStatus  @default(IN_PROGRESS)
+  winner              GameWinner? 
+  rated               Boolean     @default(true)
+  
+  whiteRatingChange   Int?
+  blackRatingChange   Int?
+
+  pgn                 String
+  
+  startedAt           DateTime    @default(now())
+  endedAt             DateTime?
+
+  @@index([status])
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
+}
+
+model LeaderboardEntry {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id])
+  
+  rating        Int
+  
+  calculatedAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([rating(sort: Desc)])
+}
+
+model Friendship {
+  id              Int              @id @default(autoincrement())
+  
+  requesterId     Int
+  requester       User             @relation("FriendshipRequester", fields: [requesterId], references: [id])
+  
+  addresseeId     Int
+  addressee       User             @relation("FriendshipAddressee", fields: [addresseeId], references: [id])
+  
+  status          FriendshipStatus @default(PENDING)
+  createdAt       DateTime         @default(now())
+  respondedAt     DateTime?
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId])
+  @@index([addresseeId])
+}
+
+model Message {
+  id              Int      @id @default(autoincrement())
+  
+  senderId        Int
+  sender          User     @relation("SentMessages", fields: [senderId], references: [id])
+  
+  recipientId     Int
+  recipient       User     @relation("ReceivedMessages", fields: [recipientId], references: [id])
+  
+  body            String
+  isRead          Boolean  @default(false)
+  sentAt          DateTime @default(now())
+
+  @@index([recipientId, isRead])
+}
