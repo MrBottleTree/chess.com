@@ -20,6 +20,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "@repo/db": "^0.0.0",
     "express": "^5.2.1"
   }
 }
