@@ -6,9 +6,9 @@ const PORT = 3000;
 app.get('/', (req, res) => {
     res.send('Hello from chess.com repo!! lol');
 });
-
+ 
 app.get('/hello',(req, res) => {
-    res.send({message: 'Hello World'});
+    res.send({message: 'Hello World 1'});
 });
 
 app.listen(PORT, () => {
