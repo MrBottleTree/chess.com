@@ -11,6 +11,12 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+ 
+}
+
+enum PlayerColor {
+  WHITE
+  BLACK
 }
 
 enum GameStatus {
@@ -80,14 +86,37 @@ model Game {
   whiteRatingChange   Int?
   blackRatingChange   Int?
 
-  pgn                 String
+  // pgn                 String
   
   startedAt           DateTime    @default(now())
   endedAt             DateTime?
 
+  moves               Move []
+
   @@index([status])
   @@index([whitePlayerId])
   @@index([blackPlayerId])
+}
+model Move{
+  gameid       Int
+  moveNumber   Int
+  playerColor  PlayerColor
+  fromSquare   String
+  toSquare     String
+  promotionPiece String?
+
+  ischeck       Boolean  @default(false)
+  ischeckmate    Boolean  @default(false)
+  isCapture      Boolean  @default(false)
+  isCastle       Boolean  @default(false)
+  
+  fenAfterMove String
+  createdAt     DateTime @default(now())
+
+  game Game @relation(fields: [gameid], references: [id], onDelete: Cascade)
+
+  @@id([gameid, moveNumber])
+  @@index([gameid])
 }
 
 model LeaderboardEntry {
